@@ -44,9 +44,9 @@ impl Axis {
 
 const KEYS: &[KeyCode] = &[
     KeyCode::BTN_SOUTH,     // A
-    KeyCode::BTN_RIGHT,     // B
-    KeyCode::BTN_EAST,      // X
+    KeyCode::BTN_EAST,      // B
     KeyCode::BTN_NORTH,     // Y
+    KeyCode::BTN_WEST,      // X
     KeyCode::BTN_TL,        // Left Bumper
     KeyCode::BTN_TR,        // Right Bumper
     KeyCode::BTN_SELECT,    // Select
