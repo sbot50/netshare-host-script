@@ -49,6 +49,8 @@ const KEYS: &[KeyCode] = &[
     KeyCode::BTN_WEST,      // X
     KeyCode::BTN_TL,        // Left Bumper
     KeyCode::BTN_TR,        // Right Bumper
+    KeyCode::BTN_TL2,       // Left Trigger
+    KeyCode::BTN_TR2,       // Right Trigger
     KeyCode::BTN_SELECT,    // Select
     KeyCode::BTN_START,     // Start
     KeyCode::BTN_THUMBL,    // Left Stick Button
@@ -100,7 +102,33 @@ impl Device {
             if let Some(key) = self.string_to_key(&key) {
                 events.push(InputEvent::new(EventType::KEY.0, key.0, value as i32));
             } else if let Some(axis) = self.string_to_axis(&key) {
-                if key.contains("trigger") { events.push(InputEvent::new(EventType::ABSOLUTE.0, axis.0, (value * 255.0) as i32)); }
+                if key.contains("trigger") {
+                    if value == 0.0 || value == 1.0 {
+                        let init_values = [1.0, 0.5, 0.0];
+                        for &init_val in &init_values {
+                            let events = [
+                                InputEvent::new(EventType::ABSOLUTE.0, axis.0, (init_val * 255.0) as i32),
+                                InputEvent::new(EventType::SYNCHRONIZATION.0, 0, 0),
+                            ];
+                            self.device.emit(&events).unwrap();
+                            std::thread::sleep(std::time::Duration::from_millis(2));
+                        }
+                    }
+                    events.push(InputEvent::new(EventType::ABSOLUTE.0, axis.0, (value * 255.0) as i32));
+                    if value > 0.75 {
+                        if key.contains("left") {
+                            events.push(InputEvent::new(EventType::KEY.0, KeyCode::BTN_TL2.0, 1));
+                        } else {
+                            events.push(InputEvent::new(EventType::KEY.0, KeyCode::BTN_TR2.0, 1));
+                        }
+                    } else {
+                        if key.contains("left") {
+                            events.push(InputEvent::new(EventType::KEY.0, KeyCode::BTN_TL2.0, 0));
+                        } else {
+                            events.push(InputEvent::new(EventType::KEY.0, KeyCode::BTN_TR2.0, 0));
+                        }
+                    }
+                }
                 else { events.push(InputEvent::new(EventType::ABSOLUTE.0, axis.0, (value * 32767.0) as i32)); }
             }
         }
@@ -111,8 +139,8 @@ impl Device {
     fn string_to_key(&self, key: &str) -> Option<KeyCode> {
         match key {
             "a" => Some(KeyCode::BTN_SOUTH),
-            "b" => Some(KeyCode::BTN_RIGHT),
-            "x" => Some(KeyCode::BTN_EAST),
+            "b" => Some(KeyCode::BTN_EAST),
+            "x" => Some(KeyCode::BTN_WEST),
             "y" => Some(KeyCode::BTN_NORTH),
             "l1" => Some(KeyCode::BTN_TL),
             "r1" => Some(KeyCode::BTN_TR),
