@@ -63,14 +63,17 @@ jobs:
         uses: actions/download-artifact@v3
 
       - name: Create Release
-        uses: actions/create-release@v1
-        env:
-          TOKEN: ${{ secrets.TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
+        run: |
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "tag_name": "${{ github.ref_name }}",
+              "name": "Release ${{ github.ref_name }}",
+              "draft": false,
+              "prerelease": false
+            }' \
+            "${{ github.server_url }}/api/v1/repos/${{ github.repository }}/releases"
 
       - name: Upload Release Assets
         run: |
