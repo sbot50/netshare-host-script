@@ -1,5 +1,15 @@
+#[cfg(target_os = "linux")]
+mod device {
+    pub use crate::device_linux::*;
+}
+
+#[cfg(target_os = "windows")]
+mod device {
+    pub use crate::device_windows::*;
+}
+
 use std::collections::HashMap;
-use crate::device::Device;
+use device::Device;
 
 pub struct Client {
     id: u16,

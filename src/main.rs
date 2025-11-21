@@ -1,7 +1,12 @@
 mod parse;
 mod host;
 mod client;
-mod device;
+
+#[cfg(target_os = "linux")]
+mod device_linux;
+
+#[cfg(target_os = "windows")]
+mod device_windows;
 
 use std::net::TcpListener;
 use std::thread::spawn;

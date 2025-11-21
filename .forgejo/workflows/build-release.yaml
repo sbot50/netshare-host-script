@@ -14,7 +14,10 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             os: linux
-            artifact_name: controller-linux
+            artifact_name: fireshare-host-script
+          - target: x86_64-pc-windows-gnu
+            os: windows
+            artifact_name: fireshare-host-script.exe
 
     steps:
       - uses: actions/checkout@v3
@@ -30,7 +33,11 @@ jobs:
       - name: Install cross-compilation tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-x86-64-linux-gnu g++-x86-64-linux-gnu libevdev-dev
+          if [ "${{ matrix.target }}" = "x86_64-unknown-linux-gnu" ]; then
+            sudo apt-get install -y gcc-x86-64-linux-gnu g++-x86-64-linux-gnu libevdev-dev
+          elif [ "${{ matrix.target }}" = "x86_64-pc-windows-gnu" ]; then
+            sudo apt-get install -y mingw-w64
+          fi
 
       - name: Create cargo config
         run: |
@@ -38,6 +45,9 @@ jobs:
           cat > .cargo/config.toml << 'EOF'
           [target.x86_64-unknown-linux-gnu]
           linker = "x86_64-linux-gnu-gcc"
+
+          [target.x86_64-pc-windows-gnu]
+          linker = "x86_64-w64-mingw32-gcc"
           EOF
 
       - name: Build
@@ -49,7 +59,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.artifact_name }}
-          path: target/${{ matrix.target }}/release/fireshare-host-script
+          path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
 
   release:
     needs: build
@@ -81,7 +91,7 @@ jobs:
             "${{ github.server_url }}/api/v1/repos/${{ github.repository }}/releases/tags/${{ github.ref_name }}" \
             | jq '.id')
 
-          for artifact_dir in controller-linux; do
+          for artifact_dir in fireshare-host-script fireshare-host-script.exe; do
             if [ -d "$artifact_dir" ]; then
               for file in "$artifact_dir"/*; do
                 if [ -f "$file" ]; then
