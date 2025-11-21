@@ -22,7 +22,7 @@ jobs:
       - name: Install Rust and target
         run: |
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-          source "$HOME/.cargo/env"
+          . "$HOME/.cargo/env"
           rustup target add ${{ matrix.target }}
           rustup toolchain uninstall stable-${{ matrix.target }} || true
           rustup toolchain install stable-${{ matrix.target }} --force-non-host
@@ -41,7 +41,9 @@ jobs:
           EOF
 
       - name: Build
-        run: cargo build --release --target ${{ matrix.target }}
+        run: |
+          . "$HOME/.cargo/env"
+          cargo build --release --target ${{ matrix.target }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
@@ -59,14 +61,6 @@ jobs:
 
       - name: Download all artifacts
         uses: actions/download-artifact@v3
-
-      - name: Get release ID
-        id: get_release
-        run: |
-          RELEASE_ID=$(curl -s -H "Authorization: token ${{ secrets.TOKEN }}" \
-            "${{ github.server_url }}/api/v1/repos/${{ github.repository }}/releases/tags/${{ github.ref_name }}" \
-            | jq '.id')
-          echo "RELEASE_ID=$RELEASE_ID" >> $OUTPUT
 
       - name: Create Release
         uses: actions/create-release@v1
