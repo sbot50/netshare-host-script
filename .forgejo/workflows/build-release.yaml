@@ -22,16 +22,26 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install Rust and target
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-          . "$HOME/.cargo/env"
-          rustup target add ${{ matrix.target }}
-          rustup toolchain uninstall stable-${{ matrix.target }} || true
-          rustup toolchain install stable-${{ matrix.target }} --force-non-host
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          profile: minimal
+
+      - name: Cache APT metadata
+        uses: actions/cache@v3
+        with:
+          path: |
+            /var/lib/apt/lists
+            /var/cache/apt/archives
+          key: apt-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('.forgejo/workflows/**') }}
+          restore-keys: |
+            apt-${{ runner.os }}-${{ matrix.target }}-
 
       - name: Install cross-compilation tools
         run: |
+          sudo rm -rf /var/lib/apt/lists/*
           sudo apt-get update
           if [ "${{ matrix.target }}" = "x86_64-unknown-linux-gnu" ]; then
             sudo apt-get install -y gcc-x86-64-linux-gnu g++-x86-64-linux-gnu libevdev-dev
@@ -72,37 +82,17 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v3
 
-      - name: Create Release
-        run: |
-          curl -X POST \
-            -H "Authorization: token ${{ secrets.TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d '{
-              "tag_name": "${{ github.ref_name }}",
-              "name": "Release ${{ github.ref_name }}",
-              "draft": false,
-              "prerelease": false
-            }' \
-            "${{ github.server_url }}/api/v1/repos/${{ github.repository }}/releases"
-
-      - name: Upload Release Assets
-        run: |
-          RELEASE_ID=$(curl -s -H "Authorization: token ${{ secrets.TOKEN }}" \
-            "${{ github.server_url }}/api/v1/repos/${{ github.repository }}/releases/tags/${{ github.ref_name }}" \
-            | jq '.id')
-
-          for artifact_dir in fireshare-host-script fireshare-host-script.exe; do
-            if [ -d "$artifact_dir" ]; then
-              for file in "$artifact_dir"/*; do
-                if [ -f "$file" ]; then
-                  filename=$(basename "$file")
-                  echo "Uploading $filename..."
-                  curl -X POST \
-                    -H "Authorization: token ${{ secrets.TOKEN }}" \
-                    -H "Content-Type: application/octet-stream" \
-                    --data-binary @"$file" \
-                    "${{ github.server_url }}/api/v1/repos/${{ github.repository }}/releases/$RELEASE_ID/assets?name=$filename"
-                fi
-              done
-            fi
-          done
+      - name: Create Gitea Release and Upload Assets
+        uses: gitea.com/actions/gitea-release-action@v1
+        with:
+          api_url: ${{ github.server_url }}/api/v1
+          token: ${{ secrets.TOKEN }}
+          owner: ${{ github.repository_owner }}
+          repo: ${{ github.event.repository.name }}
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: |
+            Automated release for ${{ github.ref_name }}
+          files: |
+            fireshare-host-script/*
+            fireshare-host-script.exe/*
