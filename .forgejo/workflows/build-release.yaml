@@ -19,13 +19,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - name: Force non-host toolchain
+      - name: Install Rust and target
         run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          source "$HOME/.cargo/env"
+          rustup target add ${{ matrix.target }}
           rustup toolchain uninstall stable-${{ matrix.target }} || true
           rustup toolchain install stable-${{ matrix.target }} --force-non-host
 
@@ -65,15 +63,15 @@ jobs:
       - name: Get release ID
         id: get_release
         run: |
-          RELEASE_ID=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          RELEASE_ID=$(curl -s -H "Authorization: token ${{ secrets.TOKEN }}" \
             "${{ github.server_url }}/api/v1/repos/${{ github.repository }}/releases/tags/${{ github.ref_name }}" \
             | jq '.id')
-          echo "RELEASE_ID=$RELEASE_ID" >> $GITHUB_OUTPUT
+          echo "RELEASE_ID=$RELEASE_ID" >> $OUTPUT
 
       - name: Create Release
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TOKEN: ${{ secrets.TOKEN }}
         with:
           tag_name: ${{ github.ref }}
           release_name: Release ${{ github.ref }}
@@ -82,7 +80,7 @@ jobs:
 
       - name: Upload Release Assets
         run: |
-          RELEASE_ID=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          RELEASE_ID=$(curl -s -H "Authorization: token ${{ secrets.TOKEN }}" \
             "${{ github.server_url }}/api/v1/repos/${{ github.repository }}/releases/tags/${{ github.ref_name }}" \
             | jq '.id')
 
@@ -93,7 +91,7 @@ jobs:
                   filename=$(basename "$file")
                   echo "Uploading $filename..."
                   curl -X POST \
-                    -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                    -H "Authorization: token ${{ secrets.TOKEN }}" \
                     -H "Content-Type: application/octet-stream" \
                     --data-binary @"$file" \
                     "${{ github.server_url }}/api/v1/repos/${{ github.repository }}/releases/$RELEASE_ID/assets?name=$filename"
