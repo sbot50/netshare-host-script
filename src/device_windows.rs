@@ -8,7 +8,7 @@ pub struct Device {
 }
 
 impl Device {
-    pub fn new(name: &str) -> Device {
+    pub fn new(_: &str) -> Device {
         let client = Client::connect().unwrap();
 
         let mut target = Xbox360Wired::new(client, TargetId::default());
