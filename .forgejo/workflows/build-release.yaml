@@ -83,7 +83,7 @@ jobs:
         uses: actions/download-artifact@v3
 
       - name: Create Gitea Release and Upload Assets
-        uses: gitea.com/actions/gitea-release-action@v1
+        uses: https://gitea.com/actions/gitea-release-action@v1
         with:
           api_url: ${{ github.server_url }}/api/v1
           token: ${{ secrets.TOKEN }}
