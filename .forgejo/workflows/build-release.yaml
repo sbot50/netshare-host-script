@@ -22,32 +22,32 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Setup Rust
-        uses: https://github.com/actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: stable
-          target: ${{ matrix.target }}
-          profile: minimal
-
       - name: Cache APT metadata
-        uses: https://github.com/actions/cache@v3
+        uses: actions/cache@v3
         with:
           path: |
             /var/lib/apt/lists
             /var/cache/apt/archives
-          key: apt-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('.forgejo/workflows/**') }}
+          key: apt-cache-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
-            apt-${{ runner.os }}-${{ matrix.target }}-
+            apt-cache-${{ runner.os }}-${{ matrix.target }}-
 
       - name: Install cross-compilation tools
         run: |
-          sudo rm -rf /var/lib/apt/lists/*
           sudo apt-get update
           if [ "${{ matrix.target }}" = "x86_64-unknown-linux-gnu" ]; then
             sudo apt-get install -y gcc-x86-64-linux-gnu g++-x86-64-linux-gnu libevdev-dev
           elif [ "${{ matrix.target }}" = "x86_64-pc-windows-gnu" ]; then
             sudo apt-get install -y mingw-w64
           fi
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          profile: minimal
+          cache: true
 
       - name: Create cargo config
         run: |
@@ -83,7 +83,7 @@ jobs:
         uses: actions/download-artifact@v3
 
       - name: Create Gitea Release and Upload Assets
-        uses: https://gitea.com/actions/gitea-release-action@v1
+        uses: gitea.com/actions/gitea-release-action@v1
         with:
           api_url: ${{ github.server_url }}/api/v1
           token: ${{ secrets.TOKEN }}
