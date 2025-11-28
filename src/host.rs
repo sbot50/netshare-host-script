@@ -12,11 +12,11 @@ impl Host {
         }
     }
     
-    pub fn add_client(&mut self, id: u16, nickname: String) {
+    pub fn add_client(&mut self, id: String, nickname: String) {
         self.clients.push(Client::new(id, nickname));
     }
 
-    pub fn set_controls(&mut self, id: u16, controls: HashMap<String, f32>) {
+    pub fn set_controls(&mut self, id: String, controls: HashMap<String, f32>) {
         for i in 0..self.clients.len() {
             if self.clients[i].get_id() == id {
                 self.clients[i].set(controls);
@@ -25,7 +25,7 @@ impl Host {
         }
     }
 
-    pub fn remove_client(&mut self, id: u16) {
+    pub fn remove_client(&mut self, id: String) {
         for i in 0..self.clients.len() {
             if self.clients[i].get_id() == id {
                 self.clients.remove(i);

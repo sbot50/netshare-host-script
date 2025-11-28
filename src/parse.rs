@@ -7,7 +7,7 @@ use crate::host::Host;
 #[allow(dead_code)]
 struct Connect {
     rtype: String,
-    id: u16,
+    id: String,
     nickname: String
 }
 
@@ -15,7 +15,7 @@ struct Connect {
 #[allow(dead_code)]
 struct Data {
     rtype: String,
-    id: u16,
+    id: String,
     data: HashMap<String, f32>
 }
 
@@ -23,7 +23,7 @@ struct Data {
 #[allow(dead_code)]
 struct Disconnect {
     rtype: String,
-    id: u16
+    id: String
 }
 
 pub struct Parser {
