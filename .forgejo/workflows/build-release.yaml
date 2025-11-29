@@ -14,10 +14,10 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             os: linux
-            artifact_name: fireshare-host-script
+            artifact_name: netshare-host-script
           - target: x86_64-pc-windows-gnu
             os: windows
-            artifact_name: fireshare-host-script.exe
+            artifact_name: netshare-host-script.exe
 
     steps:
       - uses: actions/checkout@v3
@@ -94,5 +94,5 @@ jobs:
           body: |
             Automated release for ${{ github.ref_name }}
           files: |
-            fireshare-host-script/*
-            fireshare-host-script.exe/*
+            netshare-host-script/*
+            netshare-host-script.exe/*
