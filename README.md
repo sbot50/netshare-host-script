@@ -1,2 +1,2 @@
-# fireshare-host-script
+# netshare-host-script
 
