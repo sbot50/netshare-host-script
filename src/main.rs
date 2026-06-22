@@ -7,6 +7,7 @@ mod device_linux;
 
 #[cfg(target_os = "windows")]
 mod device_windows;
+mod audio_gui;
 
 use std::net::TcpListener;
 use std::thread::spawn;

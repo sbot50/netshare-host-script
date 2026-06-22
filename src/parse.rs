@@ -55,7 +55,10 @@ impl Parser {
             "disconnect" => {
                 let data: Disconnect = serde_json::from_str(&json).unwrap();
                 self.host.remove_client(data.id);
-            }
+            },
+            "get_audio" => {
+                (self.host).select_audio();
+            },
             _ => return,
         }
     }

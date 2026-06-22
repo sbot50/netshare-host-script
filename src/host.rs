@@ -1,14 +1,18 @@
 use std::collections::HashMap;
+use std::thread::spawn;
+use crate::audio_gui;
 use crate::client::Client;
 
 pub struct Host {
-    clients: Vec<Client>
+    clients: Vec<Client>,
+    audio: Option<String>
 }
 
 impl Host {
     pub fn new() -> Host {
         Host {
-            clients: Vec::new()
+            clients: Vec::new(),
+            audio: None
         }
     }
     
@@ -32,5 +36,13 @@ impl Host {
                 break;
             }
         }
-    }   
+    }
+    
+    pub fn select_audio(&mut self) {
+        // spawn(|| {
+        //     if let Err(e) = audio_gui::run() {
+        //         eprintln!("GUI error: {e}");
+        //     }
+        // });
+    }
 }
