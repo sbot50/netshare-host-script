@@ -85,7 +85,7 @@ jobs:
       - name: Create Gitea Release and Upload Assets
         uses: https://gitea.com/actions/gitea-release-action@v1
         with:
-          api_url: ${{ github.server_url }}/api/v1
+          api_url: http://localhost:3070/api/v1
           token: ${{ secrets.TOKEN }}
           owner: ${{ github.repository_owner }}
           repo: ${{ github.event.repository.name }}
