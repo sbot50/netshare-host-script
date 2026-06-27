@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::sync::mpsc::{Receiver, Sender};
 use iced::{stream, Element, Subscription, Task, Theme};
@@ -11,10 +12,28 @@ use pipewire::main_loop::MainLoop;
 
 static RECEIVER: OnceLock<Arc<Mutex<Receiver<ToGui>>>> = OnceLock::new();
 
+#[derive(Clone, Debug, Eq, PartialEq, PartialOrd)]
+pub struct Source {
+    pub name: String,
+    pub node_name: String,
+}
+
+impl Ord for Source {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.name.cmp(&other.name)
+    }
+}
+
+impl std::fmt::Display for Source {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
+    }
+}
+
 pub struct AudioGui {
     pub sender: Sender<FromGui>,
-    sources: Vec<String>,
-    selected: Option<String>,
+    sources: Vec<Source>,
+    selected: Option<Source>,
     window_id: iced::window::Id,
 }
 
@@ -70,7 +89,7 @@ pub fn view(state: &'_ AudioGui, _window: iced::window::Id) -> Element<'_, ToGui
         .into()
 }
 
-fn load_audio_sources() -> Vec<String> {
+fn load_audio_sources() -> Vec<Source> {
     pw::init();
 
     let mainloop = MainLoop::new(None).expect("Failed to create PipeWire MainLoop");
@@ -102,7 +121,15 @@ fn load_audio_sources() -> Vec<String> {
                                 name.split(".").nth(0).unwrap().to_string()
                             };
 
-                            sources_clone.lock().unwrap().push(formatted_name);
+                            let source = Source {
+                                name: formatted_name,
+                                node_name: if is_system_sink {
+                                    format!("\"{}.monitor\"", props.get("node.name").unwrap_or(""))
+                                } else {
+                                    format!("\"{}\"", props.get("node.name").unwrap_or(""))
+                                }
+                            };
+                            sources_clone.lock().unwrap().push(source);
                         }
                     }
                 }
