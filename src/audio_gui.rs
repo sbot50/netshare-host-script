@@ -48,7 +48,11 @@ pub fn default(sender: Sender<FromGui>, receiver: Receiver<ToGui>) -> (AudioGui,
 pub fn update(state: &mut AudioGui, message: ToGui) -> Task<ToGui> {
     match message {
         ToGui::OpenPicker => {
-            let (_id, task) = iced::window::open(iced::window::Settings::default());
+            let window_settings = iced::window::Settings {
+                size: iced::Size::new(350.0, 200.0), // A safe starting minimum guess
+                ..Default::default()
+            };
+            let (_id, task) = iced::window::open(window_settings);
             state.window_id = _id;
             task.map(ToGui::WindowOpened)
         }
@@ -57,6 +61,7 @@ pub fn update(state: &mut AudioGui, message: ToGui) -> Task<ToGui> {
         }
         ToGui::SourcesLoaded(sources) => {
             state.sources = sources;
+            state.selected = state.sources.first().cloned();
             Task::none()
         }
         ToGui::SelectionChanged(source) => {
@@ -68,8 +73,7 @@ pub fn update(state: &mut AudioGui, message: ToGui) -> Task<ToGui> {
                 Some(s) => state.sender.send(FromGui::Selected(s.clone())).ok(),
                 None => state.sender.send(FromGui::Cancelled).ok(),
             };
-            let _: Task<ToGui> = iced::window::close(state.window_id);
-            Task::none()
+            iced::window::close(state.window_id)
         }
     }
 }
@@ -90,67 +94,78 @@ pub fn view(state: &'_ AudioGui, _window: iced::window::Id) -> Element<'_, ToGui
 }
 
 fn load_audio_sources() -> Vec<Source> {
-    pw::init();
+    let mut sources = Vec::new();
+    let mut entire_system = Vec::new();
 
-    let mainloop = MainLoop::new(None).expect("Failed to create PipeWire MainLoop");
-    let context = Context::new(&mainloop).expect("Failed to create PipeWire Context");
-    let core = context.connect(None).expect("Failed to connect to PipeWire Core");
-    let registry = core.get_registry().expect("Failed to get PipeWire Registry");
+    if let Ok(out) = std::process::Command::new("pactl")
+        .args(["list", "short", "sinks"])
+        .output()
+    {
+        for line in String::from_utf8_lossy(&out.stdout).lines() {
+            let parts: Vec<&str> = line.split_whitespace().collect();
 
-    let sources = Arc::new(Mutex::new(Vec::new()));
+            if parts.len() >= 2 && parts[1] != "netshare_sink" {
+                entire_system.push(Source {
+                    name: "Entire System".to_string(),
+                    node_name: format!("{}.monitor", parts[1]),
+                });
+            }
+        }
+    }
 
-    let sources_clone = sources.clone();
-    let _registry_listener = registry
-        .add_listener_local()
-        .global(move |global| {
-            if global.type_ == pw::types::ObjectType::Node {
-                if let Some(props) = global.props {
-                    if let Some(media_class) = props.get("media.class") {
-                        let is_app_stream = media_class == "Stream/Output/Audio";
-                        let is_system_sink = media_class == "Audio/Sink";
+    if let Ok(out) = std::process::Command::new("pactl")
+        .args(["list", "sink-inputs"])
+        .output()
+    {
+        let stdout_str = String::from_utf8_lossy(&out.stdout);
 
-                        if is_app_stream || is_system_sink {
-                            let name = props.get("node.description")
-                                .or_else(|| props.get("application.name"))
-                                .or_else(|| props.get("node.name"))
-                                .unwrap_or("Unknown Stream");
+        let mut current_id = None;
+        let mut current_name = None;
 
-                            let formatted_name = if is_system_sink {
-                                "Entire System".to_string()
-                            } else {
-                                name.split(".").nth(0).unwrap().to_string()
-                            };
+        for line in stdout_str.lines() {
+            let line = line.trim();
 
-                            let source = Source {
-                                name: formatted_name,
-                                node_name: if is_system_sink {
-                                    format!("\"{}.monitor\"", props.get("node.name").unwrap_or(""))
-                                } else {
-                                    format!("\"{}\"", props.get("node.name").unwrap_or(""))
-                                }
-                            };
-                            sources_clone.lock().unwrap().push(source);
-                        }
-                    }
+            if line.starts_with("Sink Input #") {
+                if let (Some(id), Some(name)) =
+                    (current_id.take(), current_name.take())
+                {
+                    sources.push(Source {
+                        name,
+                        node_name: id,
+                    });
+                }
+
+                current_id = line
+                    .strip_prefix("Sink Input #")
+                    .map(|s| s.to_string());
+
+                continue;
+            }
+
+            if line.starts_with("application.name = \"") {
+                if let Some(name) = line.split('"').nth(1) {
+                    current_name = Some(name.to_string());
+                }
+            } else if current_name.is_none()
+                && line.starts_with("media.name = \"")
+            {
+                if let Some(name) = line.split('"').nth(1) {
+                    current_name = Some(name.to_string());
                 }
             }
-        })
-        .register();
+        }
 
-    let mainloop_clone = mainloop.clone();
-    let _core_listener = core
-        .add_listener_local()
-        .done(move |_id, _seq| {
-            mainloop_clone.quit();
-        })
-        .register();
+        if let (Some(id), Some(name)) = (current_id, current_name) {
+            sources.push(Source {
+                name,
+                node_name: id,
+            });
+        }
+    }
 
-    core.sync(0).ok();
-    mainloop.run();
+    sources.splice(0..0, entire_system);
 
-    let mut result = sources.lock().unwrap().clone();
-    result.sort();
-    result
+    sources
 }
 
 pub fn receiver_stream() -> impl iced::futures::Stream<Item = ToGui> {

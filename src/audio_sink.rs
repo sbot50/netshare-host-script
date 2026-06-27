@@ -1,24 +1,58 @@
+use std::process::Command;
+
+fn cleanup_old_modules() {
+    let output = match Command::new("pactl")
+        .args(["list", "short", "modules"])
+        .output()
+    {
+        Ok(out) => out,
+        Err(_) => return,
+    };
+
+    let text = String::from_utf8_lossy(&output.stdout);
+
+    for line in text.lines() {
+        let mut parts = line.splitn(3, '\t');
+
+        let id = parts.next().unwrap_or("");
+        let module = parts.next().unwrap_or("");
+        let args = parts.next().unwrap_or("");
+
+        let should_remove =
+            (module == "module-null-sink"
+                && args.contains("sink_name=netshare_sink"))
+                ||
+                (module == "module-loopback"
+                    && args.contains("sink=netshare_sink"));
+
+        if should_remove {
+            let _ = Command::new("pactl")
+                .args(["unload-module", id])
+                .status();
+        }
+    }
+}
+
 pub struct NullSinkGuard {
-    child_process: std::process::Child,
+    module_id: u32,
 }
 
 impl NullSinkGuard {
     pub fn new() -> Option<Self> {
-        let child = std::process::Command::new("pw-loopback")
+        cleanup_old_modules();
+        let output = std::process::Command::new("pactl")
             .args([
-                "-m", "2",
-                "--capture-props", "node.name=netshare_sink node.description=NetShare media.class=Audio/Sink",
-                "--playback-props", "node.name=netshare node.description=NetShare media.class=Audio/Source",
+                "load-module", "module-null-sink",
+                "sink_name=netshare_sink",
+                "sink_properties=device.description=NetShare",
             ])
-            .spawn()
+            .output()
             .ok()?;
 
-        Some(NullSinkGuard { child_process: child })
-    }
-}
+        if !output.status.success() { return None; }
 
-impl Drop for NullSinkGuard {
-    fn drop(&mut self) {
-        let _ = self.child_process.kill();
+        let module_id = String::from_utf8_lossy(&output.stdout).trim().parse::<u32>().ok()?;
+
+        Some(NullSinkGuard { module_id })
     }
 }

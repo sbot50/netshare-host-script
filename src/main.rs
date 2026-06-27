@@ -45,6 +45,7 @@ fn main() -> iced::Result {
     });
     let from_gui_tx = Arc::new(Mutex::new(Some(from_gui_tx)));
     let to_gui_rx = Arc::new(Mutex::new(Some(to_gui_rx)));
+
     iced::daemon(
         move || {
             let tx = from_gui_tx.lock().unwrap().take().unwrap();
@@ -59,23 +60,6 @@ fn main() -> iced::Result {
         .run()
 }
 
-fn get_default_sink_monitor() -> String {
-    let output = std::process::Command::new("pactl")
-        .args(["info"])
-        .output();
-
-    if let Ok(output) = output {
-        let text = String::from_utf8_lossy(&output.stdout);
-        for line in text.lines() {
-            if let Some(sink_name) = line.strip_prefix("Default Sink:") {
-                return format!("node.name={}.monitor", sink_name.trim());
-            }
-        }
-    }
-
-    "media.class=Audio/Source/Virtual".to_string()
-}
-
 fn websocket(send: Sender<ToGui>, receive: Arc<Mutex<Receiver<FromGui>>>) {
     let server = TcpListener::bind("127.0.0.1:6731").unwrap();
     for stream in server.incoming() {
@@ -87,22 +71,38 @@ fn websocket(send: Sender<ToGui>, receive: Arc<Mutex<Receiver<FromGui>>>) {
         let mut parser = parse::Parser::new();
 
         spawn(move || {
+            let mut active_loopback_id: Option<String> = None;
+
             loop {
                 if let Ok(msg) = receive.lock().unwrap().recv() {
                     if let FromGui::Selected(stream_name) = msg {
-                        let capture_props = if stream_name.name == "Entire System" {
-                            format!("{}", stream_name.node_name)
-                        } else {
-                            format!("{}", stream_name.node_name)
-                        };
+                        if let Some(id) = active_loopback_id.take() {
+                            let _ = std::process::Command::new("pactl")
+                                .args(["unload-module", &id])
+                                .output();
+                        }
 
-                        std::process::Command::new("pw-loopback")
+                        let output = std::process::Command::new("pactl")
                             .args([
-                                "--capture-props", &format!("target.object={}", stream_name.node_name),
-                                "--playback-props", "target.object=netshare_sink",
+                                "load-module", "module-loopback",
+                                &format!("source={}", stream_name.node_name),
+                                "sink=netshare_sink",
+                                "latency_msec=1",
                             ])
-                            .spawn()
-                            .ok();
+                            .output();
+
+                        if let Ok(out) = output {
+                            if out.status.success() {
+                                let new_id = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                                active_loopback_id = Some(new_id);
+                            }
+                        }
+                    } else if let FromGui::Cancelled = msg {
+                        if let Some(id) = active_loopback_id.take() {
+                            let _ = std::process::Command::new("pactl")
+                                .args(["unload-module", &id])
+                                .output();
+                        }
                     }
                 }
             }

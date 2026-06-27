@@ -4,15 +4,13 @@ use crate::audio_gui;
 use crate::client::Client;
 
 pub struct Host {
-    clients: Vec<Client>,
-    audio: Option<String>
+    clients: Vec<Client>
 }
 
 impl Host {
     pub fn new() -> Host {
         Host {
-            clients: Vec::new(),
-            audio: None
+            clients: Vec::new()
         }
     }
     
