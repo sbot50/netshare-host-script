@@ -44,36 +44,43 @@ fn main() -> iced::Result {
     #[cfg(target_os = "linux")]
     {
         let _sink = NullSinkGuard::new().expect("failed to create null sink");
+
+        let (to_gui_tx, to_gui_rx) = mpsc::channel::<ToGui>();
+        let (from_gui_tx, from_gui_rx) = mpsc::channel::<FromGui>();
+        let from_gui_rx_shared = Arc::new(Mutex::new(from_gui_rx));
+        spawn(move || {
+            websocket(to_gui_tx, from_gui_rx_shared);
+        });
+        let from_gui_tx = Arc::new(Mutex::new(Some(from_gui_tx)));
+        let to_gui_rx = Arc::new(Mutex::new(Some(to_gui_rx)));
+
+        iced::daemon(
+            move || {
+                let tx = from_gui_tx.lock().unwrap().take().unwrap();
+                let rx = to_gui_rx.lock().unwrap().take().unwrap();
+                audio_gui::default(tx, rx)
+            },
+            audio_gui::update,
+            audio_gui::view,
+        )
+            .theme(audio_gui::theme)
+            .subscription(audio_gui::receiver_subscription)
+            .run()
     }
-
-    let (to_gui_tx, to_gui_rx) = mpsc::channel::<ToGui>();
-    let (from_gui_tx, from_gui_rx) = mpsc::channel::<FromGui>();
-    let from_gui_rx_shared = Arc::new(Mutex::new(from_gui_rx));
-    spawn(move || {
+    #[cfg(target_os = "windows")]
+    {
+        let (to_gui_tx, _) = mpsc::channel::<ToGui>();
+        let (_, from_gui_rx) = mpsc::channel::<FromGui>();
+        let from_gui_rx_shared = Arc::new(Mutex::new(from_gui_rx));
         websocket(to_gui_tx, from_gui_rx_shared);
-    });
-    let from_gui_tx = Arc::new(Mutex::new(Some(from_gui_tx)));
-    let to_gui_rx = Arc::new(Mutex::new(Some(to_gui_rx)));
-
-    iced::daemon(
-        move || {
-            let tx = from_gui_tx.lock().unwrap().take().unwrap();
-            let rx = to_gui_rx.lock().unwrap().take().unwrap();
-            audio_gui::default(tx, rx)
-        },
-        audio_gui::update,
-        audio_gui::view,
-    )
-        .theme(audio_gui::theme)
-        .subscription(audio_gui::receiver_subscription)
-        .run()
+    }
 }
 
 fn websocket(send: Sender<ToGui>, receive: Arc<Mutex<Receiver<FromGui>>>) {
     let server = TcpListener::bind("127.0.0.1:6731").unwrap();
     for stream in server.incoming() {
         let send = send.clone();
-        let receive = receive.clone();
+        let _receive = receive.clone();
         let stream = stream.unwrap();
 
         let mut websocket_conn = accept(stream).unwrap();
@@ -84,7 +91,7 @@ fn websocket(send: Sender<ToGui>, receive: Arc<Mutex<Receiver<FromGui>>>) {
             let mut active_loopback_id: Option<String> = None;
 
             loop {
-                if let Ok(msg) = receive.lock().unwrap().recv() {
+                if let Ok(msg) = _receive.lock().unwrap().recv() {
                     if let FromGui::Selected(stream_name) = msg {
                         if let Some(id) = active_loopback_id.take() {
                             let _ = std::process::Command::new("pactl")

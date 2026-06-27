@@ -39,7 +39,7 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self, json: &str, send: &Sender<ToGui>) {
+    pub fn parse(&mut self, json: &str, _send: &Sender<ToGui>) {
         let data = serde_json::from_str(&json);
         if data.is_err() {
             return;
@@ -64,7 +64,7 @@ impl Parser {
             },
             #[cfg(target_os = "linux")]
             "get_audio" => {
-                send.send(ToGui::OpenPicker).unwrap();
+                _send.send(ToGui::OpenPicker).unwrap();
             },
             _ => return,
         }
