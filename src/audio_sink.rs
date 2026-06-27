@@ -33,14 +33,12 @@ fn cleanup_old_modules() {
     }
 }
 
-pub struct NullSinkGuard {
-    module_id: u32,
-}
+pub struct NullSinkGuard {}
 
 impl NullSinkGuard {
     pub fn new() -> Option<Self> {
         cleanup_old_modules();
-        let output = std::process::Command::new("pactl")
+        let output = Command::new("pactl")
             .args([
                 "load-module", "module-null-sink",
                 "sink_name=netshare_sink",
@@ -51,8 +49,6 @@ impl NullSinkGuard {
 
         if !output.status.success() { return None; }
 
-        let module_id = String::from_utf8_lossy(&output.stdout).trim().parse::<u32>().ok()?;
-
-        Some(NullSinkGuard { module_id })
+        Some(NullSinkGuard {})
     }
 }

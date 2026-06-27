@@ -1,6 +1,4 @@
 use std::collections::HashMap;
-use std::thread::spawn;
-use crate::audio_gui;
 use crate::client::Client;
 
 pub struct Host {
