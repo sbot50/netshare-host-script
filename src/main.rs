@@ -15,6 +15,7 @@ mod audio_sink;
 use std::net::TcpListener;
 use std::sync::{mpsc, Arc, Mutex};
 use std::sync::mpsc::{Receiver, Sender};
+#[cfg(target_os = "linux")]
 use std::thread::spawn;
 use tungstenite::{accept};
 #[cfg(target_os = "linux")]
@@ -40,40 +41,38 @@ enum FromGui {
     Selected(Source),
 }
 
+#[cfg(target_os = "linux")]
 fn main() -> iced::Result {
-    #[cfg(target_os = "linux")]
-    {
-        let _sink = NullSinkGuard::new().expect("failed to create null sink");
+    let _sink = NullSinkGuard::new().expect("failed to create null sink");
 
-        let (to_gui_tx, to_gui_rx) = mpsc::channel::<ToGui>();
-        let (from_gui_tx, from_gui_rx) = mpsc::channel::<FromGui>();
-        let from_gui_rx_shared = Arc::new(Mutex::new(from_gui_rx));
-        spawn(move || {
-            websocket(to_gui_tx, from_gui_rx_shared);
-        });
-        let from_gui_tx = Arc::new(Mutex::new(Some(from_gui_tx)));
-        let to_gui_rx = Arc::new(Mutex::new(Some(to_gui_rx)));
-
-        iced::daemon(
-            move || {
-                let tx = from_gui_tx.lock().unwrap().take().unwrap();
-                let rx = to_gui_rx.lock().unwrap().take().unwrap();
-                audio_gui::default(tx, rx)
-            },
-            audio_gui::update,
-            audio_gui::view,
-        )
-            .theme(audio_gui::theme)
-            .subscription(audio_gui::receiver_subscription)
-            .run()
-    }
-    #[cfg(target_os = "windows")]
-    {
-        let (to_gui_tx, _) = mpsc::channel::<ToGui>();
-        let (_, from_gui_rx) = mpsc::channel::<FromGui>();
-        let from_gui_rx_shared = Arc::new(Mutex::new(from_gui_rx));
+    let (to_gui_tx, to_gui_rx) = mpsc::channel::<ToGui>();
+    let (from_gui_tx, from_gui_rx) = mpsc::channel::<FromGui>();
+    let from_gui_rx_shared = Arc::new(Mutex::new(from_gui_rx));
+    spawn(move || {
         websocket(to_gui_tx, from_gui_rx_shared);
-    }
+    });
+    let from_gui_tx = Arc::new(Mutex::new(Some(from_gui_tx)));
+    let to_gui_rx = Arc::new(Mutex::new(Some(to_gui_rx)));
+
+    iced::daemon(
+        move || {
+            let tx = from_gui_tx.lock().unwrap().take().unwrap();
+            let rx = to_gui_rx.lock().unwrap().take().unwrap();
+            audio_gui::default(tx, rx)
+        },
+        audio_gui::update,
+        audio_gui::view,
+    )
+        .theme(audio_gui::theme)
+        .subscription(audio_gui::receiver_subscription)
+        .run()
+}
+#[cfg(target_os = "windows")]
+fn main() {
+    let (to_gui_tx, _) = mpsc::channel::<ToGui>();
+    let (_, from_gui_rx) = mpsc::channel::<FromGui>();
+    let from_gui_rx_shared = Arc::new(Mutex::new(from_gui_rx));
+    websocket(to_gui_tx, from_gui_rx_shared);
 }
 
 fn websocket(send: Sender<ToGui>, receive: Arc<Mutex<Receiver<FromGui>>>) {
