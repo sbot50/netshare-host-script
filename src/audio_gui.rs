@@ -6,10 +6,6 @@ use iced::futures::SinkExt;
 use iced::widget::{button, column, pick_list, text};
 use crate::{FromGui, ToGui};
 
-use pipewire as pw;
-use pipewire::context::Context;
-use pipewire::main_loop::MainLoop;
-
 static RECEIVER: OnceLock<Arc<Mutex<Receiver<ToGui>>>> = OnceLock::new();
 
 #[derive(Clone, Debug, Eq, PartialEq, PartialOrd)]

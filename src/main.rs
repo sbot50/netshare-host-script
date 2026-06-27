@@ -7,23 +7,28 @@ mod device_linux;
 
 #[cfg(target_os = "windows")]
 mod device_windows;
+#[cfg(target_os = "linux")]
 mod audio_gui;
+#[cfg(target_os = "linux")]
 mod audio_sink;
 
 use std::net::TcpListener;
 use std::sync::{mpsc, Arc, Mutex};
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread::spawn;
-use serde::Serialize;
 use tungstenite::{accept};
+#[cfg(target_os = "linux")]
 use crate::audio_gui::Source;
+#[cfg(target_os = "linux")]
 use crate::audio_sink::NullSinkGuard;
 
 #[derive(Clone, Debug)]
 enum ToGui {
     OpenPicker,
     WindowOpened(iced::window::Id),
+    #[cfg(target_os = "linux")]
     SourcesLoaded(Vec<Source>),
+    #[cfg(target_os = "linux")]
     SelectionChanged(Source),
     Submit,
 }
@@ -31,11 +36,15 @@ enum ToGui {
 #[derive(Clone, Debug)]
 enum FromGui {
     Cancelled,
+    #[cfg(target_os = "linux")]
     Selected(Source),
 }
 
 fn main() -> iced::Result {
-    let _sink = NullSinkGuard::new().expect("failed to create null sink");
+    #[cfg(target_os = "linux")]
+    {
+        let _sink = NullSinkGuard::new().expect("failed to create null sink");
+    }
 
     let (to_gui_tx, to_gui_rx) = mpsc::channel::<ToGui>();
     let (from_gui_tx, from_gui_rx) = mpsc::channel::<FromGui>();
@@ -70,6 +79,7 @@ fn websocket(send: Sender<ToGui>, receive: Arc<Mutex<Receiver<FromGui>>>) {
         let mut websocket_conn = accept(stream).unwrap();
         let mut parser = parse::Parser::new();
 
+        #[cfg(target_os = "linux")]
         spawn(move || {
             let mut active_loopback_id: Option<String> = None;
 

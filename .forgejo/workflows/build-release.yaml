@@ -36,7 +36,7 @@ jobs:
         run: |
           sudo apt-get update
           if [ "${{ matrix.target }}" = "x86_64-unknown-linux-gnu" ]; then
-            sudo apt-get install -y gcc-x86-64-linux-gnu g++-x86-64-linux-gnu libevdev-dev
+            sudo apt-get install -y gcc-x86-64-linux-gnu g++-x86-64-linux-gnu libevdev-dev pkg-config libpipewire-0.3-dev
           elif [ "${{ matrix.target }}" = "x86_64-pc-windows-gnu" ]; then
             sudo apt-get install -y mingw-w64
           fi

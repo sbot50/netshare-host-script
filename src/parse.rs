@@ -62,6 +62,7 @@ impl Parser {
                 let data: Disconnect = serde_json::from_str(&json).unwrap();
                 self.host.remove_client(data.id);
             },
+            #[cfg(target_os = "linux")]
             "get_audio" => {
                 send.send(ToGui::OpenPicker).unwrap();
             },
