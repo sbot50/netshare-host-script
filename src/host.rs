@@ -37,12 +37,4 @@ impl Host {
             }
         }
     }
-    
-    pub fn select_audio(&mut self) {
-        // spawn(|| {
-        //     if let Err(e) = audio_gui::run() {
-        //         eprintln!("GUI error: {e}");
-        //     }
-        // });
-    }
 }

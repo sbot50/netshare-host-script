@@ -1,7 +1,9 @@
 use std::collections::HashMap;
+use std::sync::mpsc::Sender;
 use serde::{Deserialize};
 use serde_json::{Value};
 use crate::host::Host;
+use crate::ToGui;
 
 #[derive(Deserialize)]
 #[allow(dead_code)]
@@ -37,8 +39,12 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self, json: &str) {
-        let data: Value = serde_json::from_str(&json).unwrap();
+    pub fn parse(&mut self, json: &str, send: &Sender<ToGui>) {
+        let data = serde_json::from_str(&json);
+        if data.is_err() {
+            return;
+        }
+        let data: Value = data.unwrap();
         let rtype = match data["rtype"].as_str() {
             Some(rtype) => rtype,
             None => return,
@@ -57,7 +63,7 @@ impl Parser {
                 self.host.remove_client(data.id);
             },
             "get_audio" => {
-                (self.host).select_audio();
+                send.send(ToGui::OpenPicker).unwrap();
             },
             _ => return,
         }
