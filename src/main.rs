@@ -25,17 +25,21 @@ use crate::audio_sink::NullSinkGuard;
 
 #[derive(Clone, Debug)]
 enum ToGui {
+    #[cfg(target_os = "linux")]
     OpenPicker,
+    #[cfg(target_os = "linux")]
     WindowOpened(iced::window::Id),
     #[cfg(target_os = "linux")]
     SourcesLoaded(Vec<Source>),
     #[cfg(target_os = "linux")]
     SelectionChanged(Source),
+    #[cfg(target_os = "linux")]
     Submit,
 }
 
 #[derive(Clone, Debug)]
 enum FromGui {
+    #[cfg(target_os = "linux")]
     Cancelled,
     #[cfg(target_os = "linux")]
     Selected(Source),
