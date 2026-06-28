@@ -107,7 +107,7 @@ fn websocket(send: Sender<ToGui>, receive: Arc<Mutex<Receiver<FromGui>>>) {
                                 "load-module", "module-loopback",
                                 &format!("source={}", stream_name.node_name),
                                 "sink=netshare_sink",
-                                "latency_msec=1",
+                                "latency_msec=20",
                             ])
                             .output();
 
